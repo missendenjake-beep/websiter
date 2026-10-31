@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weatherly</title>
+    <style>
+      :root {
+        --bg-deep: #081b2d;
+        --bg-mid: #123b67;
+        --bg-soft: #dfefff;
+        --panel: rgba(9, 24, 39, 0.86);
+        --panel-strong: rgba(10, 17, 31, 0.82);
+        --text: #edf6ff;
+        --muted: rgba(237, 246, 255, 0.75);
+        --accent: #7bd3ff;
+        --sun: #ffd166;
+        --rain: #80c4ff;
+        --card: rgba(255, 255, 255, 0.08);
+        --shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        font-family: Inter, "Segoe UI", sans-serif;
+        background: linear-gradient(135deg, var(--bg-deep), var(--bg-mid));
+        color: var(--text);
+      }
+
+      body {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-image: linear-gradient(135deg, rgba(8, 27, 45, 0.82), rgba(18, 59, 103, 0.78));
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        transition: background-color 0.25s ease;
+      }
+
+      body.arthur-mode {
+        --accent: #82f2cc;
+        background-color: #071c27;
+        background-image:
+          linear-gradient(115deg, rgba(4, 17, 26, 0.82), rgba(7, 37, 45, 0.72)),
+          repeating-linear-gradient(135deg, rgba(130, 242, 204, 0.035) 0 1px, transparent 1px 18px),
+          linear-gradient(115deg, #08222d, #12483f, #15364a, #08222d);
+        background-size: cover, auto, 300% 300%;
+        animation: arthur-aurora 16s ease-in-out infinite alternate;
+      }
+
+      @keyframes arthur-aurora {
+        from { background-position: center, center, 0% 50%; }
+        to { background-position: center, center, 100% 50%; }
+      }
+
+      body.arthur-mode .weather-app,
+      body.arthur-mode .auth-page {
+        border-color: rgba(130, 242, 204, 0.42);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42), 0 0 36px rgba(58, 210, 170, 0.13);
+      }
+
+      .weather-app {
+        width: min(1280px, calc(100vw - 40px));
+        background: rgba(6, 15, 27, 0.72);
+        backdrop-filter: blur(18px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 22px 28px 18px;
+        border-bottom: 1px solid rgba(255,255,255,0.12);
+      }
+
+      .brand {
+        font-size: 1.2rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+
+      .account-button,
+      .auth-back {
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 999px;
+        padding: 10px 16px;
+        background: rgba(255,255,255,0.08);
+        color: var(--text);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .account-button:hover,
+      .auth-back:hover {
+        background: rgba(255,255,255,0.15);
+      }
+
+      .auth-page {
+        width: min(980px, calc(100vw - 32px));
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 28px;
+        background: rgba(6, 15, 27, 0.82);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(18px);
+        animation: auth-enter 0.35s ease both;
+      }
+
+      .auth-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 22px 28px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+
+      .auth-layout {
+        display: grid;
+        grid-template-columns: 0.9fr 1.1fr;
+        min-height: 520px;
+      }
+
+      .auth-story {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 42px 36px;
+        background: linear-gradient(160deg, rgba(9, 39, 61, 0.32), rgba(9, 23, 40, 0.9)),
+          url("https://images.unsplash.com/photo-1499346030926-9a72daac6c63?auto=format&fit=crop&w=900&q=85") center / cover;
+      }
+
+      .auth-weather-mark {
+        font-size: 4rem;
+      }
+
+      .auth-story h1 {
+        max-width: 360px;
+        margin: 0 0 12px;
+        font-size: clamp(2rem, 4vw, 3.2rem);
+        line-height: 1.05;
+      }
+
+      .auth-story p {
+        max-width: 340px;
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .auth-panel {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 42px clamp(24px, 5vw, 56px);
+      }
+
+      .auth-kicker {
+        margin: 0 0 9px;
+        color: var(--accent);
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+
+      .auth-title {
+        margin: 0;
+        font-size: 2rem;
+      }
+
+      .auth-description {
+        margin: 10px 0 24px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .auth-form {
+        display: grid;
+        gap: 16px;
+      }
+
+      .auth-field {
+        display: grid;
+        gap: 7px;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      .auth-field input {
+        width: 100%;
+        min-height: 46px;
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 10px;
+        padding: 0 13px;
+        background: rgba(255,255,255,0.06);
+        color: var(--text);
+        font: inherit;
+      }
+
+      .auth-field input:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      .auth-submit {
+        min-height: 48px;
+        margin-top: 4px;
+        border: 0;
+        border-radius: 10px;
+        background: linear-gradient(110deg, #8ee0d0, var(--accent));
+        color: #071d2b;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .auth-divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 18px 0;
+        color: rgba(237,246,255,0.58);
+        font-size: 0.8rem;
+      }
+
+      .auth-divider::before,
+      .auth-divider::after {
+        height: 1px;
+        flex: 1;
+        background: rgba(255,255,255,0.15);
+        content: "";
+      }
+
+      .google-submit {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        min-height: 46px;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 10px;
+        background: rgba(255,255,255,0.96);
+        color: #202b38;
+        font: inherit;
+        font-weight: 650;
+        cursor: pointer;
+      }
+
+      .google-mark {
+        color: #4285f4;
+        font-size: 1.15rem;
+        font-weight: 800;
+      }
+
+      .auth-switch {
+        margin: 22px 0 0;
+        color: var(--muted);
+        text-align: center;
+        font-size: 0.9rem;
+      }
+
+      .auth-switch button {
+        border: 0;
+        padding: 3px;
+        background: none;
+        color: var(--accent);
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .auth-note {
+        margin: 20px 0 0;
+        color: rgba(237,246,255,0.58);
+        font-size: 0.78rem;
+        line-height: 1.5;
+        text-align: center;
+      }
+
+      .auth-notice {
+        margin: 16px 0 0;
+        border: 1px solid rgba(123,211,255,0.4);
+        border-radius: 10px;
+        padding: 12px;
+        background: rgba(123,211,255,0.1);
+        color: var(--text);
+        font-size: 0.88rem;
+        line-height: 1.5;
+      }
+
+      @keyframes auth-enter {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #52d296;
+        box-shadow: 0 0 12px rgba(82, 210, 150, 0.9);
+      }
+
+      .content {
+        display: grid;
+        grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.85fr);
+        align-items: start;
+        gap: 18px;
+        padding: 20px 24px 24px;
+      }
+
+      .hero {
+        background: linear-gradient(145deg, rgba(24, 53, 72, 0.78), rgba(10, 23, 38, 0.88));
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 20px;
+        padding: clamp(22px, 3vw, 36px);
+        box-shadow: inset 0 1px rgba(255,255,255,0.08);
+      }
+
+      .hero-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+      }
+
+      .city-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .location-label {
+        color: var(--muted);
+        font-size: 0.8rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .location-name {
+        font-size: clamp(2.1rem, 3vw, 3.5rem);
+        font-weight: 800;
+        margin: 0;
+      }
+
+      .date-tag {
+        font-size: 0.87rem;
+        color: var(--muted);
+      }
+
+      .search-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 999px;
+        padding: 8px 12px 8px 16px;
+      }
+
+      .search-wrap input {
+        border: none;
+        outline: none;
+        background: transparent;
+        color: var(--text);
+        font-size: 0.95rem;
+        width: 150px;
+      }
+
+      .search-wrap input::placeholder {
+        color: rgba(237,246,255,0.55);
+      }
+
+      .search-wrap button {
+        border: none;
+        border-radius: 999px;
+        background: linear-gradient(135deg, var(--accent), #61a5ff);
+        color: #041827;
+        font-weight: 700;
+        padding: 10px 16px;
+        cursor: pointer;
+      }
+
+      .hero-main {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 28px;
+        margin-top: 24px;
+      }
+
+      .temp-block {
+        display: flex;
+        align-items: flex-end;
+        gap: 14px;
+      }
+
+      .weather-icon {
+        font-size: clamp(2.8rem, 5vw, 5rem);
+        line-height: 1;
+      }
+
+      .temp {
+        font-size: clamp(3.5rem, 8vw, 7rem);
+        font-weight: 800;
+        line-height: 0.9;
+      }
+
+      .temp-scale {
+        font-size: 1.6rem;
+        color: var(--muted);
+        margin-bottom: 14px;
+      }
+
+      .summary {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+      }
+
+      .summary-text {
+        font-size: 1.15rem;
+        font-weight: 600;
+      }
+
+      .forecast-pills {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .forecast-pills span {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 999px;
+        padding: 8px 12px;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(100px, 1fr));
+        gap: 14px;
+        margin-top: 28px;
+      }
+
+      .metric {
+        background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.035));
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px;
+        padding: 18px 16px;
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 0.77rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .metric-value {
+        margin-top: 8px;
+        font-size: 1.55rem;
+        font-weight: 700;
+      }
+
+      .sidebar {
+        display: grid;
+        gap: 18px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid rgba(255,255,255,0.13);
+        border-radius: 16px;
+        padding: 22px 18px;
+        box-shadow: 0 10px 26px rgba(0,0,0,0.14);
+      }
+
+      .panel-title {
+        font-size: 0.82rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 0 0 18px;
+      }
+
+      .city-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .city-item {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.04);
+        color: var(--text);
+        border-radius: 14px;
+        padding: 12px 14px;
+        cursor: pointer;
+        transition: transform 0.18s ease, border-color 0.18s ease;
+      }
+
+      .city-item:hover {
+        transform: translateY(-1px);
+        border-color: rgba(123, 211, 255, 0.5);
+      }
+
+      .city-item.active {
+        background: rgba(123, 211, 255, 0.14);
+        border-color: rgba(123, 211, 255, 0.6);
+      }
+
+      .city-name {
+        font-weight: 600;
+      }
+
+      .mini-temp {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .custom-place {
+        border-color: rgba(130, 242, 204, 0.3);
+        background: rgba(130, 242, 204, 0.08);
+      }
+
+      .custom-place:hover {
+        border-color: rgba(130, 242, 204, 0.65);
+      }
+
+      .custom-person {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+
+      .custom-person input {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid rgba(255,255,255,0.17);
+        border-radius: 10px;
+        padding: 0 12px;
+        background: rgba(0,0,0,0.2);
+        color: var(--text);
+        font: inherit;
+      }
+
+      .custom-person input:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      .hourly,
+      .weekly {
+        display: grid;
+        gap: 12px;
+      }
+
+      .hour-card,
+      .week-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 14px;
+        padding: 12px 14px;
+      }
+
+      .hour-label,
+      .week-day {
+        color: var(--muted);
+      }
+
+      .hour-temp,
+      .week-temp {
+        font-weight: 700;
+      }
+
+      .hour-icon,
+      .week-icon {
+        font-size: 1.4rem;
+      }
+
+      @media (max-width: 860px) {
+        .content {
+          grid-template-columns: 1fr;
+        }
+
+        .topbar {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 12px;
+        }
+
+        .topbar-actions {
+          width: 100%;
+          justify-content: space-between;
+        }
+
+        .hero-header,
+        .hero-main {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .summary {
+          align-items: flex-start;
+        }
+
+        .search-wrap {
+          width: 100%;
+        }
+
+        .search-wrap input {
+          width: 100%;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .auth-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .auth-story {
+          min-height: 210px;
+          padding: 24px;
+        }
+
+        .auth-weather-mark {
+          font-size: 2.5rem;
+        }
+
+        .auth-story h1 {
+          font-size: 2rem;
+        }
+
+        .auth-header {
+          padding: 18px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="authPage" class="auth-page" hidden>
+      <header class="auth-header">
+        <div class="brand">Weatherly</div>
+        <button id="backToWeather" class="auth-back" type="button">Back to weather</button>
+      </header>
+      <div class="auth-layout">
+        <section class="auth-story" aria-label="Weatherly">
+          <div class="auth-weather-mark" aria-hidden="true">🌦️</div>
+          <div>
+            <h1>A little more sunshine in your day.</h1>
+            <p>Sign in to keep your weather experience close at hand.</p>
+          </div>
+        </section>
+        <section class="auth-panel" aria-labelledby="authTitle">
+          <p class="auth-kicker">Your Weatherly account</p>
+          <h2 id="authTitle" class="auth-title">Sign in</h2>
+          <p id="authDescription" class="auth-description">Welcome back. Enter your details to continue.</p>
+
+          <form id="signInForm" class="auth-form">
+            <label class="auth-field">
+              Email address
+              <input id="signInEmail" name="email" type="email" autocomplete="email" placeholder="you@example.com" required />
+            </label>
+            <label class="auth-field">
+              Password
+              <input id="signInPassword" name="password" type="password" autocomplete="current-password" placeholder="Your password" required />
+            </label>
+            <button class="auth-submit" type="submit">Sign in</button>
+          </form>
+
+          <form id="createAccountForm" class="auth-form" hidden>
+            <label class="auth-field">
+              Your name
+              <input name="name" type="text" autocomplete="name" placeholder="Your name" required />
+            </label>
+            <label class="auth-field">
+              Email address
+              <input id="createAccountEmail" name="email" type="email" autocomplete="email" placeholder="you@example.com" required />
+            </label>
+            <label class="auth-field">
+              Create a password
+              <input id="createAccountPassword" name="password" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" required />
+            </label>
+            <button class="auth-submit" type="submit">Create account</button>
+          </form>
+
+          <div class="auth-divider">or</div>
+          <button id="googleSignInButton" class="google-submit" type="button">
+            <span class="google-mark" aria-hidden="true">G</span>
+            Continue with Google
+          </button>
+
+          <p id="authNotice" class="auth-notice" role="status" hidden></p>
+          <p class="auth-switch">
+            <span id="switchPrompt">New to Weatherly?</span>
+            <button id="switchAuthMode" type="button">Create an account</button>
+          </p>
+          <p class="auth-note">Sign-in is provided by Firebase Authentication. Your password is handled by Firebase and is never stored by this page.</p>
+        </section>
+      </div>
+    </main>
+
+    <main id="weatherPage" class="weather-app">
+      <header class="topbar">
+        <div class="brand">Weatherly</div>
+        <div class="topbar-actions">
+          <div class="status"><span class="dot"></span> Live conditions</div>
+          <button id="openSignIn" class="account-button" type="button">Sign in</button>
+        </div>
+      </header>
+
+      <section class="content">
+        <div class="hero">
+          <div class="hero-header">
+            <div class="city-group">
+              <span class="location-label">Current location</span>
+              <h1 id="locationName" class="location-name">New York</h1>
+              <div id="dateTag" class="date-tag">Tuesday, 9:40 AM</div>
+            </div>
+
+            <div class="search-wrap">
+              <input id="cityInput" type="text" placeholder="Search city" aria-label="Search city" />
+              <button id="searchBtn" type="button">Search</button>
+            </div>
+          </div>
+
+          <div class="hero-main">
+            <div class="temp-block">
+              <div id="weatherIcon" class="weather-icon">☀️</div>
+              <div class="temp" id="currentTemp">24°</div>
+              <div class="temp-scale">C</div>
+            </div>
+
+            <div class="summary">
+              <div id="summaryText" class="summary-text">Sunny and clear</div>
+              <div class="forecast-pills">
+                <span id="feelsLike">Feels like 26°</span>
+                <span id="windSpeed">Wind 12 km/h</span>
+                <span id="humidity">Humidity 52%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="metrics">
+            <div class="metric">
+              <div class="metric-label">Sunrise</div>
+              <div id="sunrise" class="metric-value">6:45 AM</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Sunset</div>
+              <div id="sunset" class="metric-value">7:20 PM</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Air quality</div>
+              <div id="airQuality" class="metric-value">Good</div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="sidebar">
+          <section class="panel">
+            <h2 class="panel-title">Popular cities</h2>
+            <div id="cityList" class="city-list"></div>
+            <button id="customPlaceButton" class="city-item custom-place" type="button">
+              <span class="city-name">Custom</span>
+              <span class="mini-temp" aria-hidden="true">+</span>
+            </button>
+            <form id="customPersonForm" class="custom-person" hidden>
+              <label for="customPersonInput">Person</label>
+              <input id="customPersonInput" name="person" type="text" autocomplete="off" placeholder="Enter a name" />
+              <button class="city-item custom-place" type="submit">Enter</button>
+            </form>
+          </section>
+
+          <section class="panel">
+            <h2 class="panel-title">Hourly</h2>
+            <div id="hourlyList" class="hourly"></div>
+          </section>
+
+          <section class="panel">
+            <h2 class="panel-title">7-day forecast</h2>
+            <div id="weeklyList" class="weekly"></div>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <script>
+      const weatherData = {
+        "New York": {
+          city: "New York",
+          temperature: 24,
+          condition: "Sunny and clear",
+          icon: "☀️",
+          feelsLike: 26,
+          wind: 12,
+          humidity: 52,
+          sunrise: "6:45 AM",
+          sunset: "7:20 PM",
+          airQuality: "Good",
+          hourly: [
+            { time: "Now", temp: 24, icon: "☀️" },
+            { time: "1 PM", temp: 26, icon: "🌤️" },
+            { time: "2 PM", temp: 27, icon: "🌤️" },
+            { time: "3 PM", temp: 28, icon: "☀️" },
+            { time: "4 PM", temp: 27, icon: "⛅" }
+          ],
+          weekly: [
+            { day: "Mon", temp: 25, icon: "☀️" },
+            { day: "Tue", temp: 23, icon: "🌤️" },
+            { day: "Wed", temp: 22, icon: "⛅" },
+            { day: "Thu", temp: 26, icon: "☀️" },
+            { day: "Fri", temp: 24, icon: "🌦️" },
+            { day: "Sat", temp: 21, icon: "🌧️" },
+            { day: "Sun", temp: 20, icon: "⛅" }
+          ]
+        },
+        "Tokyo": {
+          city: "Tokyo",
+          temperature: 30,
+          condition: "Warm & bright",
+          icon: "🌤️",
+          feelsLike: 33,
+          wind: 8,
+          humidity: 58,
+          sunrise: "4:42 AM",
+          sunset: "6:57 PM",
+          airQuality: "Moderate",
+          hourly: [
+            { time: "Now", temp: 30, icon: "🌤️" },
+            { time: "1 PM", temp: 31, icon: "☀️" },
+            { time: "2 PM", temp: 32, icon: "☀️" },
+            { time: "3 PM", temp: 31, icon: "🌤️" },
+            { time: "4 PM", temp: 29, icon: "⛅" }
+          ],
+          weekly: [
+            { day: "Mon", temp: 31, icon: "☀️" },
+            { day: "Tue", temp: 30, icon: "🌤️" },
+            { day: "Wed", temp: 32, icon: "☀️" },
+            { day: "Thu", temp: 27, icon: "🌧️" },
+            { day: "Fri", temp: 29, icon: "⛅" },
+            { day: "Sat", temp: 31, icon: "☀️" },
+            { day: "Sun", temp: 30, icon: "🌤️" }
+          ]
+        },
+        "Paris": {
+          city: "Paris",
+          temperature: 19,
+          condition: "Clouded sky",
+          icon: "⛅",
+          feelsLike: 20,
+          wind: 10,
+          humidity: 66,
+          sunrise: "5:58 AM",
+          sunset: "9:30 PM",
+          airQuality: "Good",
+          hourly: [
+            { time: "Now", temp: 19, icon: "⛅" },
+            { time: "1 PM", temp: 20, icon: "🌤️" },
+            { time: "2 PM", temp: 21, icon: "☀️" },
+            { time: "3 PM", temp: 22, icon: "☀️" },
+            { time: "4 PM", temp: 21, icon: "⛅" }
+          ],
+          weekly: [
+            { day: "Mon", temp: 20, icon: "⛅" },
+            { day: "Tue", temp: 18, icon: "🌧️" },
+            { day: "Wed", temp: 17, icon: "🌦️" },
+            { day: "Thu", temp: 19, icon: "⛅" },
+            { day: "Fri", temp: 21, icon: "☀️" },
+            { day: "Sat", temp: 22, icon: "☀️" },
+            { day: "Sun", temp: 20, icon: "🌤️" }
+          ]
+        },
+        "Sydney": {
+          city: "Sydney",
+          temperature: 22,
+          condition: "Light breeze",
+          icon: "🌤️",
+          feelsLike: 23,
+          wind: 14,
+          humidity: 60,
+          sunrise: "6:40 AM",
+          sunset: "7:26 PM",
+          airQuality: "Good",
+          hourly: [
+            { time: "Now", temp: 22, icon: "🌤️" },
+            { time: "1 PM", temp: 23, icon: "☀️" },
+            { time: "2 PM", temp: 24, icon: "☀️" },
+            { time: "3 PM", temp: 25, icon: "🌤️" },
+            { time: "4 PM", temp: 24, icon: "⛅" }
+          ],
+          weekly: [
+            { day: "Mon", temp: 23, icon: "🌤️" },
+            { day: "Tue", temp: 22, icon: "⛅" },
+            { day: "Wed", temp: 24, icon: "☀️" },
+            { day: "Thu", temp: 25, icon: "☀️" },
+            { day: "Fri", temp: 26, icon: "🌤️" },
+            { day: "Sat", temp: 23, icon: "🌦️" },
+            { day: "Sun", temp: 21, icon: "⛅" }
+          ]
+        },
+        "London": {
+          city: "London, England",
+          temperature: 14,
+          condition: "Cloudy with sunny spells",
+          icon: "🌥️",
+          feelsLike: 13,
+          wind: 16,
+          humidity: 68,
+          sunrise: "7:45 AM",
+          sunset: "5:45 PM",
+          airQuality: "Good",
+          hourly: [
+            { time: "Now", temp: 14, icon: "🌥️" },
+            { time: "1 PM", temp: 15, icon: "⛅" },
+            { time: "2 PM", temp: 16, icon: "🌤️" },
+            { time: "3 PM", temp: 15, icon: "⛅" },
+            { time: "4 PM", temp: 13, icon: "🌥️" }
+          ],
+          weekly: [
+            { day: "Mon", temp: 15, icon: "⛅" },
+            { day: "Tue", temp: 13, icon: "🌧️" },
+            { day: "Wed", temp: 14, icon: "🌥️" },
+            { day: "Thu", temp: 16, icon: "🌤️" },
+            { day: "Fri", temp: 15, icon: "🌦️" },
+            { day: "Sat", temp: 12, icon: "🌧️" },
+            { day: "Sun", temp: 14, icon: "⛅" }
+          ]
+        },
+        "Luton": {
+          city: "Luton, England",
+          temperature: 13,
+          condition: "Mostly cloudy",
+          icon: "☁️",
+          feelsLike: 12,
+          wind: 14,
+          humidity: 71,
+          sunrise: "7:43 AM",
+          sunset: "5:43 PM",
+          airQuality: "Good",
+          hourly: [
+            { time: "Now", temp: 13, icon: "☁️" },
+            { time: "1 PM", temp: 14, icon: "🌥️" },
+            { time: "2 PM", temp: 15, icon: "⛅" },
+            { time: "3 PM", temp: 14, icon: "🌥️" },
+            { time: "4 PM", temp: 12, icon: "☁️" }
+          ],
+          weekly: [
+            { day: "Mon", temp: 14, icon: "🌥️" },
+            { day: "Tue", temp: 12, icon: "🌧️" },
+            { day: "Wed", temp: 13, icon: "☁️" },
+            { day: "Thu", temp: 15, icon: "⛅" },
+            { day: "Fri", temp: 14, icon: "🌦️" },
+            { day: "Sat", temp: 11, icon: "🌧️" },
+            { day: "Sun", temp: 13, icon: "🌥️" }
+          ]
+        },
+        "Manchester": {
+          city: "Manchester, England",
+          temperature: 12,
+          condition: "Light rain",
+          icon: "🌦️",
+          feelsLike: 10,
+          wind: 19,
+          humidity: 78,
+          sunrise: "7:55 AM",
+          sunset: "5:40 PM",
+          airQuality: "Good",
+          hourly: [
+            { time: "Now", temp: 12, icon: "🌦️" },
+            { time: "1 PM", temp: 13, icon: "🌧️" },
+            { time: "2 PM", temp: 13, icon: "🌥️" },
+            { time: "3 PM", temp: 14, icon: "⛅" },
+            { time: "4 PM", temp: 12, icon: "🌧️" }
+          ],
+          weekly: [
+            { day: "Mon", temp: 13, icon: "🌦️" },
+            { day: "Tue", temp: 11, icon: "🌧️" },
+            { day: "Wed", temp: 12, icon: "☁️" },
+            { day: "Thu", temp: 14, icon: "⛅" },
+            { day: "Fri", temp: 13, icon: "🌦️" },
+            { day: "Sat", temp: 10, icon: "🌧️" },
+            { day: "Sun", temp: 12, icon: "🌥️" }
+          ]
+        },
+        "Birmingham": {
+          city: "Birmingham, England",
+          temperature: 13,
+          condition: "Partly cloudy",
+          icon: "⛅",
+          feelsLike: 12,
+          wind: 15,
+          humidity: 70,
+          sunrise: "7:50 AM",
+          sunset: "5:48 PM",
+          airQuality: "Good",
+          hourly: [
+            { time: "Now", temp: 13, icon: "⛅" },
+            { time: "1 PM", temp: 14, icon: "🌥️" },
+            { time: "2 PM", temp: 15, icon: "⛅" },
+            { time: "3 PM", temp: 15, icon: "🌤️" },
+            { time: "4 PM", temp: 13, icon: "☁️" }
+          ],
+          weekly: [
+            { day: "Mon", temp: 14, icon: "⛅" },
+            { day: "Tue", temp: 12, icon: "🌧️" },
+            { day: "Wed", temp: 13, icon: "☁️" },
+            { day: "Thu", temp: 15, icon: "🌤️" },
+            { day: "Fri", temp: 14, icon: "🌥️" },
+            { day: "Sat", temp: 11, icon: "🌧️" },
+            { day: "Sun", temp: 13, icon: "⛅" }
+          ]
+        },
+        "Cape Town": {
+          city: "Cape Town",
+          temperature: 17,
+          condition: "Refreshing air",
+          icon: "🌦️",
+          feelsLike: 16,
+          wind: 18,
+          humidity: 72,
+          sunrise: "7:20 AM",
+          sunset: "7:45 PM",
+          airQuality: "Moderate",
+          hourly: [
+            { time: "Now", temp: 17, icon: "🌦️" },
+            { time: "1 PM", temp: 18, icon: "⛅" },
+            { time: "2 PM", temp: 19, icon: "🌤️" },
+            { time: "3 PM", temp: 18, icon: "🌧️" },
+            { time: "4 PM", temp: 16, icon: "🌦️" }
+          ],
+          weekly: [
+            { day: "Mon", temp: 18, icon: "🌤️" },
+            { day: "Tue", temp: 17, icon: "🌦️" },
+            { day: "Wed", temp: 16, icon: "🌧️" },
+            { day: "Thu", temp: 15, icon: "⛅" },
+            { day: "Fri", temp: 17, icon: "🌤️" },
+            { day: "Sat", temp: 18, icon: "☀️" },
+            { day: "Sun", temp: 19, icon: "🌤️" }
+          ]
+        }
+      };
+
+      const cityOrder = ["New York", "London", "Luton", "Manchester", "Birmingham", "Tokyo", "Paris", "Sydney", "Cape Town"];
+      const countryFlags = {
+        "New York": "us",
+        "London": "gb",
+        "Luton": "gb",
+        "Manchester": "gb",
+        "Birmingham": "gb",
+        "Tokyo": "jp",
+        "Paris": "fr",
+        "Sydney": "au",
+        "Cape Town": "za"
+      };
+      const locationName = document.getElementById("locationName");
+      const dateTag = document.getElementById("dateTag");
+      const currentTemp = document.getElementById("currentTemp");
+      const summaryText = document.getElementById("summaryText");
+      const weatherIcon = document.getElementById("weatherIcon");
+      const sunrise = document.getElementById("sunrise");
+      const sunset = document.getElementById("sunset");
+      const airQuality = document.getElementById("airQuality");
+      const cityList = document.getElementById("cityList");
+      const hourlyList = document.getElementById("hourlyList");
+      const weeklyList = document.getElementById("weeklyList");
+      const customPlaceButton = document.getElementById("customPlaceButton");
+      const customPersonForm = document.getElementById("customPersonForm");
+      const customPersonInput = document.getElementById("customPersonInput");
+      const cityInput = document.getElementById("cityInput");
+      const searchBtn = document.getElementById("searchBtn");
+      const authPage = document.getElementById("authPage");
+      const weatherPage = document.getElementById("weatherPage");
+      const signInForm = document.getElementById("signInForm");
+      const createAccountForm = document.getElementById("createAccountForm");
+      const authTitle = document.getElementById("authTitle");
+      const authDescription = document.getElementById("authDescription");
+      const authNotice = document.getElementById("authNotice");
+      const switchPrompt = document.getElementById("switchPrompt");
+      const switchAuthMode = document.getElementById("switchAuthMode");
+      const openSignIn = document.getElementById("openSignIn");
+      const signInEmail = document.getElementById("signInEmail");
+      const signInPassword = document.getElementById("signInPassword");
+      const createAccountEmail = document.getElementById("createAccountEmail");
+      const createAccountPassword = document.getElementById("createAccountPassword");
+      let firebaseClient;
+      let currentUser = null;
+      let selectedCity = "New York";
+      let customPersonSubmitted = false;
+
+      const firebaseConfig = {
+        apiKey: "YOUR_FIREBASE_API_KEY",
+        authDomain: "YOUR_FIREBASE_PROJECT_ID.firebaseapp.com",
+        projectId: "YOUR_FIREBASE_PROJECT_ID",
+        appId: "YOUR_FIREBASE_APP_ID"
+      };
+
+      function isFirebaseConfigured() {
+        return !Object.values(firebaseConfig).some((value) => value.startsWith("YOUR_"));
+      }
+
+      async function getFirebaseClient() {
+        if (!isFirebaseConfigured()) {
+          throw new Error("Add your Firebase web app settings in index.html to enable sign-in.");
+        }
+        if (!firebaseClient) {
+          const [appSdk, authSdk] = await Promise.all([
+            import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js"),
+            import("https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js")
+          ]);
+          const app = appSdk.initializeApp(firebaseConfig);
+          const auth = authSdk.getAuth(app);
+          firebaseClient = { auth, ...authSdk };
+        }
+        return firebaseClient;
+      }
+
+      function showAuthNotice(message) {
+        authNotice.textContent = message;
+        authNotice.hidden = false;
+      }
+
+      function updateArthurTheme() {
+        const activeEmail = createAccountForm.hidden ? signInEmail.value : createAccountEmail.value;
+        const activePassword = createAccountForm.hidden ? signInPassword.value : createAccountPassword.value;
+        const isArthurMode = (customPersonSubmitted && customPersonInput.value.trim().toLowerCase() === "jake missenden")
+          || (activeEmail.trim().toLowerCase() === "jake missenden"
+            && activePassword.trim().toLowerCase() === "jake missenden");
+
+        document.body.classList.toggle("arthur-mode", isArthurMode);
+        document.querySelectorAll(".brand").forEach((brand) => {
+          brand.textContent = isArthurMode ? "Arthur's Weather" : "Weatherly";
+        });
+        document.title = isArthurMode ? "Arthur's Weather" : "Weatherly";
+        updateWeatherBackground();
+      }
+
+      function updateWeatherBackground() {
+        if (document.body.classList.contains("arthur-mode")) {
+          document.body.style.backgroundImage = "";
+          return;
+        }
+
+        const flag = countryFlags[selectedCity] || countryFlags["New York"];
+        document.body.style.backgroundImage = `linear-gradient(125deg, rgba(7, 22, 36, 0.78), rgba(11, 33, 50, 0.7)), url("https://flagcdn.com/w1280/${flag}.png")`;
+      }
+
+      function authErrorMessage(error) {
+        const messages = {
+          "auth/email-already-in-use": "An account already exists for that email. Try signing in instead.",
+          "auth/invalid-credential": "That email and password combination was not recognized.",
+          "auth/invalid-email": "Enter a valid email address.",
+          "auth/popup-closed-by-user": "The Google sign-in window was closed before finishing.",
+          "auth/weak-password": "Choose a stronger password with at least 8 characters.",
+          "auth/unauthorized-domain": "This website domain is not authorized in your Firebase settings.",
+          "auth/network-request-failed": "Could not reach Firebase. Check your internet connection and try again."
+        };
+        return messages[error.code] || error.message || "Sign-in failed. Check your Firebase settings and try again.";
+      }
+
+      async function completeSignIn(action) {
+        authNotice.hidden = true;
+        try {
+          const client = await getFirebaseClient();
+          await action(client);
+        } catch (error) {
+          showAuthNotice(authErrorMessage(error));
+        }
+      }
+
+      function showAuth(mode) {
+        weatherPage.hidden = true;
+        authPage.hidden = false;
+        setAuthMode(mode);
+      }
+
+      function setAuthMode(mode) {
+        const creatingAccount = mode === "create";
+        signInForm.hidden = creatingAccount;
+        createAccountForm.hidden = !creatingAccount;
+        authTitle.textContent = creatingAccount ? "Create your account" : "Sign in";
+        authDescription.textContent = creatingAccount
+          ? "A few details and you're ready to go."
+          : "Welcome back. Enter your details to continue.";
+        switchPrompt.textContent = creatingAccount ? "Already have an account?" : "New to Weatherly?";
+        switchAuthMode.textContent = creatingAccount ? "Sign in" : "Create an account";
+        authNotice.hidden = true;
+      }
+
+      openSignIn.addEventListener("click", async () => {
+        if (!currentUser) {
+          showAuth("sign-in");
+          return;
+        }
+        try {
+          const client = await getFirebaseClient();
+          await client.signOut(client.auth);
+        } catch (error) {
+          showAuthNotice(authErrorMessage(error));
+        }
+      });
+      document.getElementById("backToWeather").addEventListener("click", () => {
+        authPage.hidden = true;
+        weatherPage.hidden = false;
+      });
+      switchAuthMode.addEventListener("click", () => {
+        setAuthMode(createAccountForm.hidden ? "create" : "sign-in");
+        updateArthurTheme();
+      });
+
+      customPlaceButton.addEventListener("click", () => {
+        customPersonForm.hidden = !customPersonForm.hidden;
+        if (!customPersonForm.hidden) customPersonInput.focus();
+      });
+      customPersonInput.addEventListener("input", () => {
+        customPersonSubmitted = false;
+        updateArthurTheme();
+      });
+      customPersonForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        customPersonSubmitted = true;
+        updateArthurTheme();
+      });
+
+      [signInEmail, signInPassword, createAccountEmail, createAccountPassword].forEach((input) => {
+        input.addEventListener("input", updateArthurTheme);
+      });
+
+      signInForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const { email, password } = Object.fromEntries(new FormData(signInForm));
+        completeSignIn(({ auth, signInWithEmailAndPassword }) =>
+          signInWithEmailAndPassword(auth, email, password)
+        );
+      });
+
+      createAccountForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const { email, password } = Object.fromEntries(new FormData(createAccountForm));
+        completeSignIn(({ auth, createUserWithEmailAndPassword }) =>
+          createUserWithEmailAndPassword(auth, email, password)
+        );
+      });
+
+      document.getElementById("googleSignInButton").addEventListener("click", () => {
+        completeSignIn(({ auth, GoogleAuthProvider, signInWithPopup }) =>
+          signInWithPopup(auth, new GoogleAuthProvider())
+        );
+      });
+
+      async function restoreFirebaseSession() {
+        if (!isFirebaseConfigured()) return;
+        try {
+          const client = await getFirebaseClient();
+          client.onAuthStateChanged(client.auth, (user) => {
+            currentUser = user;
+            openSignIn.textContent = user ? "Sign out" : "Sign in";
+            if (user) {
+              authPage.hidden = true;
+              weatherPage.hidden = false;
+            }
+          });
+        } catch (error) {
+          showAuthNotice(authErrorMessage(error));
+        }
+      }
+
+      /* Keep the dashboard usable when auth is not configured yet. */
+      restoreFirebaseSession();
+
+      function setDateLabel() {
+        const now = new Date();
+        const options = { weekday: "long", hour: "numeric", minute: "2-digit" };
+        dateTag.textContent = now.toLocaleDateString("en-US", options);
+      }
+
+      function renderCityList(activeCity) {
+        cityList.innerHTML = cityOrder.map((city) => {
+          const item = weatherData[city];
+          const activeClass = city === activeCity ? "active" : "";
+          return `
+            <button class="city-item ${activeClass}" data-city="${city}" type="button">
+              <span class="city-name">${city}</span>
+              <span class="mini-temp">${item.temperature}°</span>
+            </button>
+          `;
+        }).join("");
+
+        cityList.querySelectorAll(".city-item").forEach((button) => {
+          button.addEventListener("click", () => {
+            renderWeather(button.dataset.city);
+          });
+        });
+      }
+
+      function renderHourly(items) {
+        hourlyList.innerHTML = items.map((entry) => `
+          <div class="hour-card">
+            <span class="hour-label">${entry.time}</span>
+            <span class="hour-icon">${entry.icon}</span>
+            <span class="hour-temp">${entry.temp}°</span>
+          </div>
+        `).join("");
+      }
+
+      function renderWeekly(items) {
+        weeklyList.innerHTML = items.map((entry) => `
+          <div class="week-card">
+            <span class="week-day">${entry.day}</span>
+            <span class="week-icon">${entry.icon}</span>
+            <span class="week-temp">${entry.temp}°</span>
+          </div>
+        `).join("");
+      }
+
+      function renderWeather(cityName) {
+        const data = weatherData[cityName] || weatherData["New York"];
+        selectedCity = weatherData[cityName] ? cityName : "New York";
+        updateWeatherBackground();
+        locationName.textContent = data.city;
+        currentTemp.textContent = `${data.temperature}°`;
+        summaryText.textContent = data.condition;
+        weatherIcon.textContent = data.icon;
+        document.getElementById("feelsLike").textContent = `Feels like ${data.feelsLike}°`;
+        document.getElementById("windSpeed").textContent = `Wind ${data.wind} km/h`;
+        document.getElementById("humidity").textContent = `Humidity ${data.humidity}%`;
+        sunrise.textContent = data.sunrise;
+        sunset.textContent = data.sunset;
+        airQuality.textContent = data.airQuality;
+
+        renderCityList(data.city);
+        renderHourly(data.hourly);
+        renderWeekly(data.weekly);
+      }
+
+      searchBtn.addEventListener("click", () => {
+        const value = cityInput.value.trim();
+        if (!value) return;
+        const cityMatch = Object.keys(weatherData).find((city) => city.toLowerCase() === value.toLowerCase());
+        if (cityMatch) {
+          renderWeather(cityMatch);
+        } else {
+          const suggestions = Object.keys(weatherData)
+            .filter((city) => city.toLowerCase().includes(value.toLowerCase()))
+            .slice(0, 1);
+          if (suggestions[0]) {
+            renderWeather(suggestions[0]);
+          } else {
+            alert("City not found. Try New York, London, Luton, Manchester, Birmingham, Tokyo, Paris, Sydney, or Cape Town.");
+          }
+        }
+        cityInput.value = "";
+      });
+
+      cityInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          searchBtn.click();
+        }
+      });
+
+      setDateLabel();
+      renderWeather("New York");
+    </script>
+  </body>
+</html>
