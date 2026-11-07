@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+(<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -1314,92 +1314,221 @@
       restoreFirebaseSession();
 
       function setDateLabel() {
-        const now = new Date();
-        const options = { weekday: "long", hour: "numeric", minute: "2-digit" };
-        dateTag.textContent = now.toLocaleDateString("en-US", options);
+            const liveWeatherCodes = {
+        0: ["Clear sky", "☀️"], 1: ["Mostly clear", "🌤️"],
+        2: ["Partly cloudy", "⛅"], 3: ["Overcast", "☁️"],
+        45: ["Fog", "🌫️"], 48: ["Rime fog", "🌫️"],
+        51: ["Light drizzle", "🌦️"], 53: ["Drizzle", "🌦️"],
+        55: ["Heavy drizzle", "🌧️"], 56: ["Freezing drizzle", "🌧️"],
+        57: ["Heavy freezing drizzle", "🌧️"], 61: ["Light rain", "🌦️"],
+        63: ["Rain", "🌧️"], 65: ["Heavy rain", "🌧️"],
+        66: ["Freezing rain", "🌧️"], 67: ["Heavy freezing rain", "🌧️"],
+        71: ["Light snow", "🌨️"], 73: ["Snow", "❄️"],
+        75: ["Heavy snow", "❄️"], 77: ["Snow grains", "❄️"],
+        80: ["Rain showers", "🌦️"], 81: ["Heavy showers", "🌧️"],
+        82: ["Violent showers", "⛈️"], 85: ["Snow showers", "🌨️"],
+        86: ["Heavy snow showers", "🌨️"], 95: ["Thunderstorm", "⛈️"],
+        96: ["Thunderstorm with hail", "⛈️"], 99: ["Thunderstorm with hail", "⛈️"]
+      };
+
+      let selectedWeatherQuery = "New York";
+      let weatherRequestId = 0;
+      const cityTemperatures = {};
+
+      function weatherInfo(code) {
+        return liveWeatherCodes[code] || ["Weather", "🌤️"];
+      }
+
+      function setDateLabel(timezone) {
+        dateTag.textContent = new Intl.DateTimeFormat("en-GB", {
+          weekday: "long",
+          hour: "numeric",
+          minute: "2-digit",
+          timeZone: timezone || undefined
+        }).format(new Date());
+      }
+
+      function formatForecastDate(date) {
+        return new Intl.DateTimeFormat("en-GB", {
+          weekday: "short",
+          day: "numeric",
+          timeZone: "UTC"
+        }).format(new Date(`${date}T12:00:00Z`));
+      }
+
+      function formatApiTime(dateTime) {
+        if (!dateTime) return "—";
+        const time = dateTime.split("T")[1];
+        if (!time) return "—";
+        const [hour, minute] = time.split(":");
+        const date = new Date(Date.UTC(2000, 0, 1, Number(hour), Number(minute)));
+        return new Intl.DateTimeFormat("en-GB", {
+          hour: "numeric",
+          minute: "2-digit",
+          timeZone: "UTC"
+        }).format(date);
       }
 
       function renderCityList(activeCity) {
-        cityList.innerHTML = cityOrder.map((city) => {
-          const item = weatherData[city];
-          const activeClass = city === activeCity ? "active" : "";
-          return `
-            <button class="city-item ${activeClass}" data-city="${city}" type="button">
-              <span class="city-name">${city}</span>
-              <span class="mini-temp">${item.temperature}°</span>
-            </button>
-          `;
-        }).join("");
+        cityList.innerHTML = cityOrder.map((city) => `
+          <button class="city-item ${city === activeCity ? "active" : ""}"
+                  data-city="${city}" type="button">
+            <span class="city-name">${city}</span>
+            <span class="mini-temp">${cityTemperatures[city] ?? "—"}°</span>
+          </button>
+        `).join("");
 
         cityList.querySelectorAll(".city-item").forEach((button) => {
-          button.addEventListener("click", () => {
-            renderWeather(button.dataset.city);
-          });
+          button.addEventListener("click", () => renderWeather(button.dataset.city));
         });
       }
 
-      function renderHourly(items) {
-        hourlyList.innerHTML = items.map((entry) => `
-          <div class="hour-card">
-            <span class="hour-label">${entry.time}</span>
-            <span class="hour-icon">${entry.icon}</span>
-            <span class="hour-temp">${entry.temp}°</span>
-          </div>
-        `).join("");
+      function renderHourly(data) {
+        const times = data.hourly?.time || [];
+        const temps = data.hourly?.temperature_2m || [];
+        const codes = data.hourly?.weather_code || [];
+        const rain = data.hourly?.precipitation_probability || [];
+
+        let start = times.findIndex((time) => time >= data.current.time);
+        if (start < 0) start = 0;
+
+        hourlyList.innerHTML = times.slice(start, start + 5).map((time, offset) => {
+          const index = start + offset;
+          const [label, icon] = weatherInfo(codes[index]);
+          const hourLabel = offset === 0 ? "Now" : formatApiTime(time);
+          const rainLabel = rain[index] == null ? "" : ` · ${Math.round(rain[index])}% rain`;
+          return `
+            <div class="hour-card">
+              <span class="hour-label">${hourLabel}</span>
+              <span class="hour-icon">${icon}</span>
+              <span class="hour-temp">${Math.round(temps[index])}°${rainLabel}</span>
+            </div>
+          `;
+        }).join("");
       }
 
-      function renderWeekly(items) {
-        weeklyList.innerHTML = items.map((entry) => `
-          <div class="week-card">
-            <span class="week-day">${entry.day}</span>
-            <span class="week-icon">${entry.icon}</span>
-            <span class="week-temp">${entry.temp}°</span>
-          </div>
-        `).join("");
+      function renderWeekly(data) {
+        const daily = data.daily || {};
+        weeklyList.innerHTML = (daily.time || []).map((date, index) => {
+          const [label, icon] = weatherInfo(daily.weather_code?.[index]);
+          return `
+            <div class="week-card">
+              <span class="week-day">${formatForecastDate(date)}</span>
+              <span class="week-icon" title="${label}">${icon}</span>
+              <span class="week-temp">
+                ${Math.round(daily.temperature_2m_max[index])}° /
+                ${Math.round(daily.temperature_2m_min[index])}°
+              </span>
+            </div>
+          `;
+        }).join("");
       }
 
-      function renderWeather(cityName) {
-        const data = weatherData[cityName] || weatherData["New York"];
-        selectedCity = weatherData[cityName] ? cityName : "New York";
-        updateWeatherBackground();
-        locationName.textContent = data.city;
-        currentTemp.textContent = `${data.temperature}°`;
-        summaryText.textContent = data.condition;
-        weatherIcon.textContent = data.icon;
-        document.getElementById("feelsLike").textContent = `Feels like ${data.feelsLike}°`;
-        document.getElementById("windSpeed").textContent = `Wind ${data.wind} km/h`;
-        document.getElementById("humidity").textContent = `Humidity ${data.humidity}%`;
-        sunrise.textContent = data.sunrise;
-        sunset.textContent = data.sunset;
-        airQuality.textContent = data.airQuality;
+      async function getWeatherForPlace(query) {
+        const geocodeUrl = new URL("https://geocoding-api.open-meteo.com/v1/search");
+        geocodeUrl.search = new URLSearchParams({
+          name: query,
+          count: "5",
+          language: "en",
+          format: "json"
+        });
 
-        renderCityList(data.city);
-        renderHourly(data.hourly);
-        renderWeekly(data.weekly);
+        const geocodeResponse = await fetch(geocodeUrl);
+        if (!geocodeResponse.ok) throw new Error("Could not search for that location.");
+        const places = (await geocodeResponse.json()).results || [];
+        if (!places.length) throw new Error("No matching city was found.");
+
+        const place = places[0];
+        const weatherUrl = new URL("https://api.open-meteo.com/v1/forecast");
+        weatherUrl.search = new URLSearchParams({
+          latitude: String(place.latitude),
+          longitude: String(place.longitude),
+          current: "temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,precipitation",
+          hourly: "temperature_2m,weather_code,precipitation_probability",
+          daily: "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset",
+          timezone: "auto",
+          forecast_days: "7"
+        });
+
+        const weatherResponse = await fetch(weatherUrl);
+        if (!weatherResponse.ok) throw new Error("Could not load weather data.");
+        const data = await weatherResponse.json();
+        if (!data.current || !data.daily) throw new Error("Weather data was incomplete.");
+
+        return { place, data };
+      }
+
+      async function renderWeather(query) {
+        selectedWeatherQuery = query;
+        const requestId = ++weatherRequestId;
+        summaryText.textContent = "Loading weather…";
+
+        try {
+          const { place, data } = await getWeatherForPlace(query);
+          if (requestId !== weatherRequestId) return;
+
+          const current = data.current;
+          const [condition, icon] = weatherInfo(current.weather_code);
+          const displayName = place.name || query;
+          const region = place.admin1 || place.country || "";
+
+          locationName.textContent = [displayName, region].filter(Boolean).join(", ");
+          currentTemp.textContent = `${Math.round(current.temperature_2m)}°`;
+          summaryText.textContent = condition;
+          weatherIcon.textContent = icon;
+          document.getElementById("feelsLike").textContent =
+            `Feels like ${Math.round(current.apparent_temperature)}°`;
+          document.getElementById("windSpeed").textContent =
+            `Wind ${Math.round(current.wind_speed_10m)} km/h`;
+          document.getElementById("humidity").textContent =
+            `Humidity ${Math.round(current.relative_humidity_2m)}%`;
+
+          const cityKey = cityOrder.find((city) =>
+            city.toLowerCase() === displayName.toLowerCase()
+          );
+          if (cityKey) cityTemperatures[cityKey] = Math.round(current.temperature_2m);
+
+          sunrise.textContent = formatApiTime(data.daily.sunrise?.[0]);
+          sunset.textContent = formatApiTime(data.daily.sunset?.[0]);
+          airQuality.textContent = "Not provided";
+
+          setDateLabel(data.timezone);
+          selectedCity = cityKey || displayName;
+          updateWeatherBackground();
+          renderCityList(cityKey || "");
+          renderHourly(data);
+          renderWeekly(data);
+        } catch (error) {
+          if (requestId === weatherRequestId) {
+            summaryText.textContent = "Weather unavailable";
+            window.alert(error.message || "Could not load weather. Please try again.");
+          }
+        }
       }
 
       searchBtn.addEventListener("click", () => {
-        const value = cityInput.value.trim();
-        if (!value) return;
-        const cityMatch = Object.keys(weatherData).find((city) => city.toLowerCase() === value.toLowerCase());
-        if (cityMatch) {
-          renderWeather(cityMatch);
-        } else {
-          const suggestions = Object.keys(weatherData)
-            .filter((city) => city.toLowerCase().includes(value.toLowerCase()))
-            .slice(0, 1);
-          if (suggestions[0]) {
-            renderWeather(suggestions[0]);
-          } else {
-            alert("City not found. Try New York, London, Luton, Manchester, Birmingham, Tokyo, Paris, Sydney, or Cape Town.");
-          }
-        }
+        const query = cityInput.value.trim();
+        if (!query) return;
         cityInput.value = "";
+        renderWeather(query);
       });
 
       cityInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
+          event.preventDefault();
           searchBtn.click();
+        }
+      });
+
+      setDateLabel();
+      renderWeather(selectedWeatherQuery);
+      setInterval(() => {
+        if (!document.hidden) renderWeather(selectedWeatherQuery);
+      }, 10 * 60 * 1000);
+
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) renderWeather(selectedWeatherQuery);
+      });
         }
       });
 
